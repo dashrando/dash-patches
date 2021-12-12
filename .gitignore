@@ -1,2 +1,7 @@
 *.swp
 *.sfc
+*.srm
+*.sym
+*.bp
+*.ips
+*.bin
