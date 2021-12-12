@@ -1,63 +1,62 @@
-include "../include/snes.asm"
-include "tracking.asm"
-include "fonts.asm"
+incsrc "tracking.asm"
+;incsrc "fonts.asm"
 
-// Defines for the script and credits data
-define speed = $f770
-define set = $9a17
-define delay = $9a0d
-define draw = $0000
-define end = $f6fe, $99fe
-define blank = $1fc0
-define row = $0040
+; Defines for the script and credits data
+!speed = $f770
+!set = $9a17
+!delay = $9a0d
+!draw = $0000
+!end = $f6fe, $99fe
+!blank = $1fc0
+!row = $0040
 
-define last_saveslot = $7fffe0
-define timer_backup1 = $7fffe2
-define timer_backup2 = $7fffe4
-define softreset = $7fffe6
-define scroll_speed = $7fffe8
+!last_saveslot = $7fffe0
+!timer_backup1 = $7fffe2
+!timer_backup2 = $7fffe4
+!softreset = $7fffe6
+!scroll_speed = $7fffe8
 
-// Patch soft reset to retain value of RTA counter
-seek($80844B)
+; Patch soft reset to retain value of RTA counter
+org $80844B
     jml patch_reset1
-seek($808490)
+org $808490
     jml patch_reset2
 
-// Patch loading and saving routines
-seek($81807f)
+; Patch loading and saving routines
+org $81807f
     jmp patch_save
 
-seek($8180f7)
+org $8180f7
     jmp patch_load
 
-// Hijack loading new game to reset stats
-seek($828063)
+; Hijack loading new game to reset stats
+org $828063
     jsl clear_values
 
-// Hijack the original credits code to read the script from bank $DF
-seek($8b9976)
+; Hijack the original credits code to read the script from bank $DF
+org $8b9976
     jml scroll
 
-seek($8b999b)
+org $8b999b
     jml patch1 
 
-seek($8b99e5)
+org $8b99e5
     jml patch2
 
-seek($8b9a08)
+org $8b9a08
     jml patch3
 
-seek($8b9a19)
+org $8b9a19
     jml patch4
 
 
 
-// Hijack when samus is in the ship and ready to leave the planet
-seek($a2ab13)
+; Hijack when samus is in the ship and ready to leave the planet
+org $a2ab13
   jsl game_end
 
-// Patch NMI to skip resetting 05ba and instead use that as an extra time counter
-seek($8095e5)
+; Patch NMI to skip resetting 05ba and instead use that as an extra time counter
+org $8095e5
 nmi:
     ldx #$00
     stx $05b4
@@ -73,7 +72,7 @@ nmi_inc:
 +
     bra nmi_end
 
-seek($809602)
+org $809602
     bra nmi_inc
 nmi_end:
     ply
@@ -83,24 +82,24 @@ nmi_end:
     plb
     rti
 
-// Patch soft reset to save the value of the RTA timer
-seek($80fe00)
+; Patch soft reset to save the value of the RTA timer
+org $80fe00
 patch_reset1:
-    lda {softreset} // Check if we're softresetting
+    lda !softreset ; Check if we're softresetting
     cmp #$babe
     beq save_timer
     lda #$babe
-    sta {softreset}
+    sta !softreset
     lda #$0000
-    sta {timer_backup1}
-    sta {timer_backup2}
-    sta {last_saveslot}
+    sta !timer_backup1
+    sta !timer_backup2
+    sta !last_saveslot
     bra skipsave
 save_timer:   
-    lda {timer1}
-    sta {timer_backup1}
-    lda {timer2}
-    sta {timer_backup2}
+    lda !timer1
+    sta !timer_backup1
+    lda !timer2
+    sta !timer_backup2
 skipsave:
     ldx #$1ffe
     lda #$0000
@@ -109,17 +108,17 @@ skipsave:
     dex
     dex
     bpl - 
-    lda {timer_backup1}
-    sta {timer1}
-    lda {timer_backup2}
-    sta {timer2}
+    lda !timer_backup1
+    sta !timer1
+    lda !timer_backup2
+    sta !timer2
     jml $808455
 
 patch_reset2:
-    lda {timer1}
-    sta {timer_backup1}
-    lda {timer2}
-    sta {timer_backup2}
+    lda !timer1
+    sta !timer_backup1
+    lda !timer2
+    sta !timer_backup2
     ldx #$1ffe
 -
     stz $0000,x
@@ -134,7 +133,7 @@ patch_reset2:
     dex        
     bpl -
 
-    ldx #$00df          // clear temp variables
+    ldx #$00df          ; clear temp variables
     lda #$0000
 -
     sta $7fff00,x
@@ -142,26 +141,26 @@ patch_reset2:
     dex
     bpl -
 
-    lda {timer_backup1}
-    sta {timer1}
-    lda {timer_backup2}
-    sta {timer2}
+    lda !timer_backup1
+    sta !timer1
+    lda !timer_backup2
+    sta !timer2
     jml $8084af
 
-warnpc($80ff00)
+warnpc $80ff00
 
-// Patch load and save routines
-seek($81ef20)
+; Patch load and save routines
+org $81ef20
 patch_save:
-    lda {timer1}
+    lda !timer1
     sta $7ffc00
-    lda {timer2}
+    lda !timer2
     sta $7ffc02
     jsl save_stats
     lda $7e0952
     clc
     adc #$0010
-    sta {last_saveslot}
+    sta !last_saveslot
     ply
     plx
     clc
@@ -173,13 +172,13 @@ patch_load:
     lda $7e0952
     clc
     adc #$0010
-    cmp {last_saveslot}     // If we're loading the same save that's played last
-    beq +                   // don't restore stats from SRAM, only do this if
-    jsl load_stats          // a new save slot is loaded, or loading from hard reset
+    cmp !last_saveslot      ; If we're loading the same save that's played last
+    beq +                   ; don't restore stats from SRAM, only do this if
+    jsl load_stats          ; a new save slot is loaded, or loading from hard reset
     lda $7ffc00
-    sta {timer1}
+    sta !timer1
     lda $7ffc02
-    sta {timer2}
+    sta !timer2
 +
     ply
     plx
@@ -187,17 +186,17 @@ patch_load:
     plb
     rtl
 
-// Hijack after decompression of regular credits tilemaps
-seek($8be0d1)
+; Hijack after decompression of regular credits tilemaps
+org $8be0d1
     jsl copy
 
-// Load credits script data from bank $df instead of $8c
-seek($8bf770)
+; Load credits script data from bank $df instead of $8c
+org $8bf770
 set_scroll:
     rep #$30
-    phb; pea $df00; plb; plb
+    phb : pea $df00 : plb : plb
     lda $0000,y
-    sta {scroll_speed}
+    sta !scroll_speed
     iny
     iny
     plb
@@ -206,7 +205,7 @@ set_scroll:
 scroll:
     inc $1995
     lda $1995
-    cmp {scroll_speed}
+    cmp !scroll_speed
     beq +
     lda $1997
     jml $8b9989
@@ -218,7 +217,7 @@ scroll:
 
 
 patch1:
-    phb; pea $df00; plb; plb
+    phb : pea $df00 : plb : plb
     lda $0000,y    
     bpl +
     plb
@@ -229,26 +228,26 @@ patch1:
 
 patch2:
     sta $0014
-    phb; pea $df00; plb; plb
+    phb : pea $df00 : plb : plb
     lda $0002,y    
     plb
     jml $8b99eb
 
 patch3:
-    phb; pea $df00; plb; plb
+    phb : pea $df00 : plb : plb
     lda $0000,y
     tay
     plb
     jml $8b9a0c
 
 patch4:
-    phb; pea $df00; plb; plb
+    phb : pea $df00 : plb : plb
     lda $0000,y
     plb
     sta $19fb
     jml $8b9a1f
 
-// Copy custom credits tilemap data from $ceb240,x to $7f2000,x
+; Copy custom credits tilemap data from $ceb240,x to $7f2000,x
 copy:
     pha
     phx
@@ -276,7 +275,7 @@ copy:
 
     jsl write_stats
     lda #$0002
-    sta {scroll_speed}
+    sta !scroll_speed
     plx
     pla
     jsl $8b95ce
@@ -285,13 +284,13 @@ copy:
 clear_values:
     php
     rep #$30
-    // Do some checks to see that we're actually starting a new game    
-    // Make sure game mode is 1f
+    ; Do some checks to see that we're actually starting a new game    
+    ; Make sure game mode is 1f
     lda $7e0998
     cmp.w #$001f
     bne clear_value_ret
     
-    // Check if samus saved energy is 00, if it is, run startup code
+    ; Check if samus saved energy is 00, if it is, run startup code
     lda $7ed7e2
     bne clear_value_ret
 
@@ -303,29 +302,29 @@ clear_values:
     cpx #$0180
     bne -
 
-    // Clear RTA Timer
+    ; Clear RTA Timer
     lda #$0000
-    sta {timer1}
-    sta {timer2}
+    sta !timer1
+    sta !timer2
 
 clear_value_ret:
     plp
     jsl $809a79
     rtl
 
-// Game has ended, save RTA timer to RAM and copy all stats to SRAM a final time
-function game_end {
-  lda {timer1}
+; Game has ended, save RTA timer to RAM and copy all stats to SRAM a final time
+game_end: {
+  lda !timer1
   sta $7ffc00
-  lda {timer2}
+  lda !timer2
   sta $7ffc02
 
-  // Subtract frames from pressing down at ship to this code running
+  ; Subtract frames from pressing down at ship to this code running
   lda $7ffc00
   sec
   sbc #$013d
   sta $7ffc00
-  lda #$0000  // if carry clear this will subtract one from the high byte of timer
+  lda #$0000  ; if carry clear this will subtract one from the high byte of timer
   sbc $7ffc02
 
   jsl save_stats
@@ -334,13 +333,13 @@ function game_end {
   rtl
 }
 
-seek($dfd4f0)
-// Draw full time as hh:mm:ss:ff
-// Pointer to first byte of RAM in A
+org $dfd4f0
+; Draw full time as hh:mm:ss:ff
+; Pointer to first byte of RAM in A
 draw_full_time:
     phx
     phb
-    pea $7f7f; plb; plb
+    pea $7f7f : plb : plb
     tax
     lda $0000,x
     sta $16
@@ -350,73 +349,73 @@ draw_full_time:
     sta $12
     lda #$ffff
     sta $1a
-    jsr div32 // frames in $14, rest in $16
-    iny; iny; iny; iny; iny; iny // Increment Y three positions forward to write the last value    
+    jsr div32 ; frames in $14, rest in $16
+    iny : iny : iny : iny : iny : iny ; Increment Y three positions forward to write the last value    
     lda $14
     jsr draw_two
     tya
     sec
     sbc #$0010
-    tay     // Skip back 8 characters to draw the top three things
+    tay     ; Skip back 8 characters to draw the top three things
     lda $16
     jsr draw_time
     plb
     plx
     rts  
 
-// Draw time as xx:yy:zz
+; Draw time as xx:yy:zz
 draw_time:
     phx
     phb
-    dey; dey; dey; dey; dey; dey // Decrement Y by 3 characters so the time count fits
-    pea $7f7f; plb; plb
+    dey : dey : dey : dey : dey : dey ; Decrement Y by 3 characters so the time count fits
+    pea $7f7f : plb : plb
     sta $004204
     sep #$20
     lda #$ff
     sta $1a
     lda #$3c
     sta $004206
-    pha; pla; pha; pla; rep #$20
-    lda $004216 // Seconds or Frames
+    pha : pla : pha : pla : rep #$20
+    lda $004216 ; Seconds or Frames
     sta $12
-    lda $004214 // First two groups (hours/minutes or minutes/seconds)
+    lda $004214 ; First two groups (hours/minutes or minutes/seconds)
     sta $004204
     sep #$20
     lda #$3c
     sta $004206
-    pha; pla; pha; pla; rep #$20
+    pha : pla : pha : pla : rep #$20
     lda $004216
     sta $14
-    lda $004214 // First group (hours or minutes)
+    lda $004214 ; First group (hours or minutes)
     jsr draw_two
-    iny; iny // Skip past separator
-    lda $14 // Second group (minutes or seconds)
+    iny : iny ; Skip past separator
+    lda $14 ; Second group (minutes or seconds)
     jsr draw_two
-    iny; iny
-    lda $12 // Last group (seconds or frames)
+    iny : iny
+    lda $12 ; Last group (seconds or frames)
     jsr draw_two
     plb
     plx
     rts        
 
-// Draw 5-digit value to credits tilemap
-// A = number to draw, Y = row address
+; Draw 5-digit value to credits tilemap
+; A = number to draw, Y = row address
 draw_value:
   phx    
   phb
-  pea $7f7f; plb; plb
-  stz $1a     // Leading zeroes flag
+  pea $7f7f : plb : plb
+  stz $1a     ; Leading zeroes flag
 
-  ldx #100
+  ldx.w #100
   jsr integer_division
 
-  lda $004216 // Load the last two digits
-  pha         // Push last two digits onto the stack
+  lda $004216 ; Load the last two digits
+  pha         ; Push last two digits onto the stack
 
-  lda $004214 // Load the top three digits
+  lda $004214 ; Load the top three digits
   jsr draw_three
 
-  pla         // Pull last two digits from the stack
+  pla         ; Pull last two digits from the stack
   jsr draw_two
 
   plb
@@ -424,50 +423,50 @@ draw_value:
   rts
 
 draw_three:
-  ldx #100
+  ldx.w #100
   jsr integer_division
 
-  lda $004214 // Hundreds
+  lda $004214 ; Hundreds
   jsr draw_digit_without_padding
-  iny; iny
+  iny : iny
 
   lda $004216
-  ldx #10
+  ldx.w #10
   jsr integer_division
 
   lda $004214
   jsr draw_digit_without_padding
-  iny; iny
+  iny : iny
 
   lda $004216
   jsr draw_digit_without_padding
-  iny; iny
+  iny : iny
   rts
 
 draw_two:
-  ldx #10
+  ldx.w #10
   jsr integer_division 
 
   lda $004214
   cmp $1a
   beq +
-  jsr draw_digit; +
-  iny; iny
+  jsr draw_digit : +
+  iny : iny
 
   lda $004216
   jsr draw_digit
-  iny; iny
+  iny : iny
 
   rts
 
-// A = dividend, X = divisor
-// $004214 = quotient, $004216 = remainder
+; A = dividend, X = divisor
+; $004214 = quotient, $004216 = remainder
 integer_division:
   sta $004204
   sep #$20
   txa
   sta $004206
-  pha; pla; pha; pla; rep #$20
+  pha : pla : pha : pla : rep #$20
   rts
 
 draw_digit_without_padding:
@@ -476,34 +475,35 @@ draw_digit_without_padding:
 draw_digit:
   asl
   tax
-  lda numbers_top,x
+  print pc
+  lda.l numbers_top,x
   sta $0034,y
-  lda numbers_bot,x
-  sta $0074,y; +
-  rts
+  lda.l numbers_bot,x
+  sta $0074,y
++ rts
 
-warnpc($dfd635)
+warnpc $dfd635
 
-seek($dfd635)
-// Loop through stat table and update RAM with numbers representing those stats
+org $dfd635
+; Loop through stat table and update RAM with numbers representing those stats
 write_stats:
     phy
     phb
     php
-    pea $dfdf; plb; plb
+    pea $dfdf : plb : plb
     rep #$30
-    jsl load_stats      // Copy stats back from SRAM
+    jsl load_stats      ; Copy stats back from SRAM
     ldx #$0000
     ldy #$0000
 
 write_loop:
-    // Get pointer to table
+    ; Get pointer to table
     tya
-    asl; asl; asl;
+    asl : asl : asl
     tax
 
-    // Load stat type
-    lda stats+4,x
+    ; Load stat type
+    lda.l stats+4,x
     beq write_end
     cmp #$0001
     beq write_number
@@ -514,13 +514,13 @@ write_loop:
     jmp write_continue
 
 write_number:
-    // Load statistic
-    lda stats,x
+    ; Load statistic
+    lda.l stats,x
     jsl load_stat
     pha
 
-    // Load row address
-    lda stats+2,x
+    ; Load row address
+    lda.l stats+2,x
     tyx
     tay
     pla
@@ -529,13 +529,13 @@ write_number:
     jmp write_continue
 
 write_time:
-    // Load statistic
-    lda stats,x
+    ; Load statistic
+    lda.l stats,x
     jsl load_stat
     pha
 
-    // Load row address
-    lda stats+2,x
+    ; Load row address
+    lda.l stats+2,x
     tyx
     tay
     pla
@@ -544,14 +544,14 @@ write_time:
     jmp write_continue
 
 write_fulltime:    
-    lda stats,x        // Get stat id
+    lda.l stats,x        ; Get stat id
     asl
     clc
-    adc #$fc00          // Get pointer to value instead of actual value
+    adc #$fc00          ; Get pointer to value instead of actual value
     pha
 
-    // Load row address
-    lda stats+2,x
+    ; Load row address
+    lda.l stats+2,x
     tyx
     tay
     pla
@@ -569,7 +569,7 @@ write_end:
     ply
     rtl
 
-// 32-bit by 16-bit division routine I found somewhere
+; 32-bit by 16-bit division routine I found somewhere
 div32: 
     phy
     phx             
@@ -691,573 +691,597 @@ save_end:
     plx
     rtl
 
-warnpc($dfd800)
+warnpc $dfd800
 
-// New credits script in free space of bank $DF
-seek($dfd91b)
+macro DrawRow(index)
+    dw !draw, !row*<index>
+endmacro
+
+macro Blank()
+    dw !draw, !blank
+endmacro
+
+; New credits script in free space of bank $DF
+org $dfd91b
 script:
-    dw {set}, $0002; -
-    dw {draw}, {blank}
-    dw {delay}, -
+    dw !set, $0002 : -
+    dw !draw, !blank
+    dw !delay, -
     
-    // Show a compact version of the original credits so we get time to add more    
-    dw {draw}, {row}*0      // SUPER METROID STAFF
-    dw {draw}, {blank}
-    dw {draw}, {row}*4      // PRODUCER
-    dw {draw}, {blank}
-    dw {draw}, {row}*7      // MAKOTO KANOH
-    dw {draw}, {row}*8       
-    dw {draw}, {blank}
-    dw {draw}, {row}*9      // DIRECTOR
-    dw {draw}, {blank}
-    dw {draw}, {row}*10     // YOSHI SAKAMOTO
-    dw {draw}, {row}*11     
-    dw {draw}, {blank}
-    dw {draw}, {row}*12     // BACK GROUND DESIGNERS
-    dw {draw}, {blank}
-    dw {draw}, {row}*13     // HIROFUMI MATSUOKA
-    dw {draw}, {row}*14     
-    dw {draw}, {blank}
-    dw {draw}, {row}*15     // MASAHIKO MASHIMO
-    dw {draw}, {row}*16     
-    dw {draw}, {blank}
-    dw {draw}, {row}*17     // HIROYUKI KIMURA
-    dw {draw}, {row}*18     
-    dw {draw}, {blank}
-    dw {draw}, {row}*19     // OBJECT DESIGNERS
-    dw {draw}, {blank}
-    dw {draw}, {row}*20     // TOHRU OHSAWA
-    dw {draw}, {row}*21     
-    dw {draw}, {blank}
-    dw {draw}, {row}*22     // TOMOYOSHI YAMANE
-    dw {draw}, {row}*23    
-    dw {draw}, {blank}
-    dw {draw}, {row}*24     // SAMUS ORIGINAL DESIGNERS
-    dw {draw}, {blank}
-    dw {draw}, {row}*25     // HIROJI KIYOTAKE
-    dw {draw}, {row}*26    
-    dw {draw}, {blank}
-    dw {draw}, {row}*27     // SAMUS DESIGNER
-    dw {draw}, {blank}
-    dw {draw}, {row}*28     // TOMOMI YAMANE
-    dw {draw}, {row}*29    
-    dw {draw}, {blank}
-    dw {draw}, {row}*83     // SOUND PROGRAM
-    dw {draw}, {row}*107    // AND SOUND EFFECTS
-    dw {draw}, {blank}
-    dw {draw}, {row}*84     // KENJI YAMAMOTO
-    dw {draw}, {row}*85    
-    dw {draw}, {blank}
-    dw {draw}, {row}*86     // MUSIC COMPOSERS
-    dw {draw}, {blank}
-    dw {draw}, {row}*84     // KENJI YAMAMOTO
-    dw {draw}, {row}*85    
-    dw {draw}, {blank}
-    dw {draw}, {row}*87     // MINAKO HAMANO
-    dw {draw}, {row}*88    
-    dw {draw}, {blank}
-    dw {draw}, {row}*30     // PROGRAM DIRECTOR
-    dw {draw}, {blank}
-    dw {draw}, {row}*31     // KENJI IMAI
-    dw {draw}, {row}*64    
-    dw {draw}, {blank}
-    dw {draw}, {row}*65     // SYSTEM COORDINATOR
-    dw {draw}, {blank}
-    dw {draw}, {row}*66     // KENJI NAKAJIMA
-    dw {draw}, {row}*67    
-    dw {draw}, {blank}
-    dw {draw}, {row}*68     // SYSTEM PROGRAMMER
-    dw {draw}, {blank}
-    dw {draw}, {row}*69     // YOSHIKAZU MORI
-    dw {draw}, {row}*70    
-    dw {draw}, {blank}
-    dw {draw}, {row}*71     // SAMUS PROGRAMMER
-    dw {draw}, {blank}
-    dw {draw}, {row}*72     // ISAMU KUBOTA
-    dw {draw}, {row}*73    
-    dw {draw}, {blank}
-    dw {draw}, {row}*74     // EVENT PROGRAMMER
-    dw {draw}, {blank}
-    dw {draw}, {row}*75     // MUTSURU MATSUMOTO
-    dw {draw}, {row}*76    
-    dw {draw}, {blank}
-    dw {draw}, {row}*77     // ENEMY PROGRAMMER
-    dw {draw}, {blank}
-    dw {draw}, {row}*78     // YASUHIKO FUJI
-    dw {draw}, {row}*79    
-    dw {draw}, {blank}
-    dw {draw}, {row}*80     // MAP PROGRAMMER
-    dw {draw}, {blank}
-    dw {draw}, {row}*81     // MOTOMU CHIKARAISHI
-    dw {draw}, {row}*82    
-    dw {draw}, {blank}
-    dw {draw}, {row}*101    // ASSISTANT PROGRAMMER
-    dw {draw}, {blank}
-    dw {draw}, {row}*102    // KOUICHI ABE
-    dw {draw}, {row}*103   
-    dw {draw}, {blank}
-    dw {draw}, {row}*104    // COORDINATORS
-    dw {draw}, {blank}
-    dw {draw}, {row}*105    // KATSUYA YAMANO
-    dw {draw}, {row}*106   
-    dw {draw}, {blank}
-    dw {draw}, {row}*63     // TSUTOMU KANESHIGE
-    dw {draw}, {row}*96   
-    dw {draw}, {blank}
-    dw {draw}, {row}*89    // PRINTED ART WORK
-    dw {draw}, {blank}
-    dw {draw}, {row}*90    // MASAFUMI SAKASHITA
-    dw {draw}, {row}*91   
-    dw {draw}, {blank}
-    dw {draw}, {row}*92    // YASUO INOUE
-    dw {draw}, {row}*93   
-    dw {draw}, {blank}
-    dw {draw}, {row}*94    // MARY COCOMA
-    dw {draw}, {row}*95   
-    dw {draw}, {blank}
-    dw {draw}, {row}*99    // YUSUKE NAKANO
-    dw {draw}, {row}*100   
-    dw {draw}, {blank}
-    dw {draw}, {row}*108   // SHINYA SANO
-    dw {draw}, {row}*109   
-    dw {draw}, {blank}
-    dw {draw}, {row}*110   // NORIYUKI SATO
-    dw {draw}, {row}*111   
-    dw {draw}, {blank}
-    dw {draw}, {row}*32    // SPECIAL THANKS TO
-    dw {draw}, {blank}
-    dw {draw}, {row}*33    // DAN OWSEN
-    dw {draw}, {row}*34   
-    dw {draw}, {blank}
-    dw {draw}, {row}*35    // GEORGE SINFIELD
-    dw {draw}, {row}*36   
-    dw {draw}, {blank}
-    dw {draw}, {row}*39    // MASARU OKADA
-    dw {draw}, {row}*40   
-    dw {draw}, {blank}
-    dw {draw}, {row}*43    // TAKAHIRO HARADA
-    dw {draw}, {row}*44   
-    dw {draw}, {blank}
-    dw {draw}, {row}*47    // KOHTA FUKUI
-    dw {draw}, {row}*48   
-    dw {draw}, {blank}
-    dw {draw}, {row}*49    // KEISUKE TERASAKI
-    dw {draw}, {row}*50   
-    dw {draw}, {blank}
-    dw {draw}, {row}*51    // MASARU YAMANAKA
-    dw {draw}, {row}*52   
-    dw {draw}, {blank}
-    dw {draw}, {row}*53    // HITOSHI YAMAGAMI
-    dw {draw}, {row}*54   
-    dw {draw}, {blank}
-    dw {draw}, {row}*57    // NOBUHIRO OZAKI
-    dw {draw}, {row}*58   
-    dw {draw}, {blank}
-    dw {draw}, {row}*59    // KENICHI NAKAMURA
-    dw {draw}, {row}*60   
-    dw {draw}, {blank}
-    dw {draw}, {row}*61    // TAKEHIKO HOSOKAWA
-    dw {draw}, {row}*62   
-    dw {draw}, {blank}
-    dw {draw}, {row}*97    // SATOSHI MATSUMURA
-    dw {draw}, {row}*98   
-    dw {draw}, {blank}
-    dw {draw}, {row}*122   // TAKESHI NAGAREDA
-    dw {draw}, {row}*123  
-    dw {draw}, {blank}
-    dw {draw}, {row}*124   // MASAHIRO KAWANO
-    dw {draw}, {row}*125  
-    dw {draw}, {blank}
-    dw {draw}, {row}*45    // HIRO YAMADA
-    dw {draw}, {row}*46  
-    dw {draw}, {blank}
-    dw {draw}, {row}*112   // AND ALL OF R&D1 STAFFS
-    dw {draw}, {row}*113  
-    dw {draw}, {blank}
-    dw {draw}, {row}*114   // GENERAL MANAGER
-    dw {draw}, {blank}
-    dw {draw}, {row}*5     // GUMPEI YOKOI
-    dw {draw}, {row}*6  
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {blank}
+    ; Show a compact version of the original credits so we get time to add more    
+    %DrawRow(0)      ; SUPER METROID STAFF
+    %Blank()
+    %DrawRow(4)      ; PRODUCER
+    %Blank()
+    %DrawRow(7)      ; MAKOTO KANOH
+    %DrawRow(8)       
+    %Blank()
+    %DrawRow(9)      ; DIRECTOR
+    %Blank()
+    %DrawRow(10)     ; YOSHI SAKAMOTO
+    %DrawRow(11)
+    %Blank()
+    %DrawRow(12)     ; BACK GROUND DESIGNERS
+    %Blank()
+    %DrawRow(13)     ; HIROFUMI MATSUOKA
+    %DrawRow(14)
+    %Blank()
+    %DrawRow(15)     ; MASAHIKO MASHIMO
+    %DrawRow(16)     
+    %Blank()
+    %DrawRow(17)     ; HIROYUKI KIMURA
+    %DrawRow(18)     
+    %Blank()
+    %DrawRow(19)     ; OBJECT DESIGNERS
+    %Blank()
+    %DrawRow(20)     ; TOHRU OHSAWA
+    %DrawRow(21)     
+    %Blank()
+    %DrawRow(22)     ; TOMOYOSHI YAMANE
+    %DrawRow(23)    
+    %Blank()
+    %DrawRow(24)     ; SAMUS ORIGINAL DESIGNERS
+    %Blank()
+    %DrawRow(25)     ; HIROJI KIYOTAKE
+    %DrawRow(26)    
+    %Blank()
+    %DrawRow(27)     ; SAMUS DESIGNER
+    %Blank()
+    %DrawRow(28)     ; TOMOMI YAMANE
+    %DrawRow(29)    
+    %Blank()
+    %DrawRow(83)     ; SOUND PROGRAM
+    %DrawRow(107)    ; AND SOUND EFFECTS
+    %Blank()
+    %DrawRow(84)     ; KENJI YAMAMOTO
+    %DrawRow(85)    
+    %Blank()
+    %DrawRow(86)     ; MUSIC COMPOSERS
+    %Blank()
+    %DrawRow(84)     ; KENJI YAMAMOTO
+    %DrawRow(85)    
+    %Blank()
+    %DrawRow(87)     ; MINAKO HAMANO
+    %DrawRow(88)    
+    %Blank()
+    %DrawRow(30)     ; PROGRAM DIRECTOR
+    %Blank()
+    %DrawRow(31)     ; KENJI IMAI
+    %DrawRow(64)    
+    %Blank()
+    %DrawRow(65)     ; SYSTEM COORDINATOR
+    %Blank()
+    %DrawRow(66)     ; KENJI NAKAJIMA
+    %DrawRow(67)    
+    %Blank()
+    %DrawRow(68)     ; SYSTEM PROGRAMMER
+    %Blank()
+    %DrawRow(69)     ; YOSHIKAZU MORI
+    %DrawRow(70)    
+    %Blank()
+    %DrawRow(71)     ; SAMUS PROGRAMMER
+    %Blank()
+    %DrawRow(72)     ; ISAMU KUBOTA
+    %DrawRow(73)    
+    %Blank()
+    %DrawRow(74)     ; EVENT PROGRAMMER
+    %Blank()
+    %DrawRow(75)     ; MUTSURU MATSUMOTO
+    %DrawRow(76)    
+    %Blank()
+    %DrawRow(77)     ; ENEMY PROGRAMMER
+    %Blank()
+    %DrawRow(78)     ; YASUHIKO FUJI
+    %DrawRow(79)    
+    %Blank()
+    %DrawRow(80)     ; MAP PROGRAMMER
+    %Blank()
+    %DrawRow(81)     ; MOTOMU CHIKARAISHI
+    %DrawRow(82)    
+    %Blank()
+    %DrawRow(101)    ; ASSISTANT PROGRAMMER
+    %Blank()
+    %DrawRow(102)    ; KOUICHI ABE
+    %DrawRow(103)   
+    %Blank()
+    %DrawRow(104)    ; COORDINATORS
+    %Blank()
+    %DrawRow(105)    ; KATSUYA YAMANO
+    %DrawRow(106)   
+    %Blank()
+    %DrawRow(63)     ; TSUTOMU KANESHIGE
+    %DrawRow(96)   
+    %Blank()
+    %DrawRow(89)    ; PRINTED ART WORK
+    %Blank()
+    %DrawRow(90)    ; MASAFUMI SAKASHITA
+    %DrawRow(91)   
+    %Blank()
+    %DrawRow(92)    ; YASUO INOUE
+    %DrawRow(93)   
+    %Blank()
+    %DrawRow(94)    ; MARY COCOMA
+    %DrawRow(95)   
+    %Blank()
+    %DrawRow(99)    ; YUSUKE NAKANO
+    %DrawRow(100)   
+    %Blank()
+    %DrawRow(108)   ; SHINYA SANO
+    %DrawRow(109)   
+    %Blank()
+    %DrawRow(110)   ; NORIYUKI SATO
+    %DrawRow(111)   
+    %Blank()
+    %DrawRow(32)    ; SPECIAL THANKS TO
+    %Blank()
+    %DrawRow(33)    ; DAN OWSEN
+    %DrawRow(34)   
+    %Blank()
+    %DrawRow(35)    ; GEORGE SINFIELD
+    %DrawRow(36)   
+    %Blank()
+    %DrawRow(39)    ; MASARU OKADA
+    %DrawRow(40)   
+    %Blank()
+    %DrawRow(43)    ; TAKAHIRO HARADA
+    %DrawRow(44)   
+    %Blank()
+    %DrawRow(47)    ; KOHTA FUKUI
+    %DrawRow(48)   
+    %Blank()
+    %DrawRow(49)    ; KEISUKE TERASAKI
+    %DrawRow(50)   
+    %Blank()
+    %DrawRow(51)    ; MASARU YAMANAKA
+    %DrawRow(52)   
+    %Blank()
+    %DrawRow(53)    ; HITOSHI YAMAGAMI
+    %DrawRow(54)   
+    %Blank()
+    %DrawRow(57)    ; NOBUHIRO OZAKI
+    %DrawRow(58)   
+    %Blank()
+    %DrawRow(59)    ; KENICHI NAKAMURA
+    %DrawRow(60)   
+    %Blank()
+    %DrawRow(61)    ; TAKEHIKO HOSOKAWA
+    %DrawRow(62)   
+    %Blank()
+    %DrawRow(97)    ; SATOSHI MATSUMURA
+    %DrawRow(98)   
+    %Blank()
+    %DrawRow(122)   ; TAKESHI NAGAREDA
+    %DrawRow(123)  
+    %Blank()
+    %DrawRow(124)   ; MASAHIRO KAWANO
+    %DrawRow(125)  
+    %Blank()
+    %DrawRow(45)    ; HIRO YAMADA
+    %DrawRow(46)  
+    %Blank()
+    %DrawRow(112)   ; AND ALL OF R&D1 STAFFS
+    %DrawRow(113)  
+    %Blank()
+    %DrawRow(114)   ; GENERAL MANAGER
+    %Blank()
+    %DrawRow(5)     ; GUMPEI YOKOI
+    %DrawRow(6)  
+    %Blank()
+    %Blank()
+    %Blank()
 
-    // Custom item randomizer credits text        
+    ; Custom item randomizer credits text        
 
-    dw {draw}, {row}*128  // Randomizer staff
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {row}*163  // Game balance
-    dw {draw}, {blank}
-    dw {draw}, {row}*165  // kipp
-    dw {draw}, {row}*166
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {row}*129  // Rando code
-    dw {draw}, {blank}
-    dw {draw}, {row}*130  // total
-    dw {draw}, {row}*131
-    dw {draw}, {blank}
-    dw {draw}, {row}*132  // dessyreqt
-    dw {draw}, {row}*133
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {row}*141  // ROM patches
-    dw {draw}, {blank}
-    dw {draw}, {row}*137  // andreww
-    dw {draw}, {row}*138
-    dw {draw}, {blank}
-    dw {draw}, {row}*146  // leodox
-    dw {draw}, {row}*147
-    dw {draw}, {blank}
-    dw {draw}, {row}*139  // personitis
-    dw {draw}, {row}*140
-    dw {draw}, {blank}
-    dw {draw}, {row}*142  // smiley
-    dw {draw}, {row}*143
-    dw {draw}, {blank}
-    dw {draw}, {row}*130  // total
-    dw {draw}, {row}*131
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {row}*162  // Logo design
-    dw {draw}, {blank}
-    dw {draw}, {row}*160  // minimemys
-    dw {draw}, {row}*161
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {row}*157  // Technical Support
-    dw {draw}, {blank}
-    dw {draw}, {row}*158  // masshesteria
-    dw {draw}, {row}*159
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {row}*148  // Special thanks to
-    dw {draw}, {blank}
-    dw {draw}, {row}*154  // Testers
-    dw {draw}, {blank}
-    dw {draw}, {row}*137  // andreww
-    dw {draw}, {row}*138
-    dw {draw}, {blank}
-    dw {draw}, {row}*155  // fbs
-    dw {draw}, {row}*156
-    dw {draw}, {blank}
-    dw {draw}, {row}*171  // maniacal
-    dw {draw}, {row}*172
-    dw {draw}, {blank}
-    dw {draw}, {row}*173  // osse
-    dw {draw}, {row}*174
-    dw {draw}, {blank}
-    dw {draw}, {row}*135  // rumble
-    dw {draw}, {row}*136
-    dw {draw}, {blank}
-    dw {draw}, {row}*144  // sloaters
-    dw {draw}, {row}*145
-    dw {draw}, {blank}
-    dw {draw}, {row}*167  // tracie
-    dw {draw}, {row}*168
-    dw {draw}, {blank}
-    dw {draw}, {row}*169  // zeb
-    dw {draw}, {row}*170
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {row}*149  // Disassembly
-    dw {draw}, {blank}
-    dw {draw}, {row}*150
-    dw {draw}, {row}*151
-    dw {draw}, {blank}
-    dw {draw}, {row}*152
-    dw {draw}, {row}*153
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {row}*175  // Metroid construction
-    dw {draw}, {blank}
-    dw {draw}, {row}*176
-    dw {draw}, {row}*177
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {row}*178  // SRL
-    dw {draw}, {blank}
-    dw {draw}, {row}*179
-    dw {draw}, {row}*180
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {row}*164  // Play this randomizer at
-    dw {draw}, {blank}
-    dw {draw}, {row}*181
-    dw {draw}, {row}*182
-    dw {draw}, {blank}
+    %DrawRow(128)  ; Randomizer staff
+    %Blank()
+    %Blank()
+    %DrawRow(163)  ; Game balance
+    %Blank()
+    %DrawRow(165)  ; kipp
+    %DrawRow(166)
+    %Blank()
+    %Blank()
+    %DrawRow(129)  ; Rando code
+    %Blank()
+    %DrawRow(130)  ; total
+    %DrawRow(131)
+    %Blank()
+    %DrawRow(132)  ; dessyreqt
+    %DrawRow(133)
+    %Blank()
+    %Blank()
+    %DrawRow(141)  ; ROM patches
+    %Blank()
+    %DrawRow(137)  ; andreww
+    %DrawRow(138)
+    %Blank()
+    %DrawRow(146)  ; leodox
+    %DrawRow(147)
+    %Blank()
+    %DrawRow(139)  ; personitis
+    %DrawRow(140)
+    %Blank()
+    %DrawRow(142)  ; smiley
+    %DrawRow(143)
+    %Blank()
+    %DrawRow(130)  ; total
+    %DrawRow(131)
+    %Blank()
+    %Blank()
+    %DrawRow(162)  ; Logo design
+    %Blank()
+    %DrawRow(160)  ; minimemys
+    %DrawRow(161)
+    %Blank()
+    %Blank()
+    %DrawRow(157)  ; Technical Support
+    %Blank()
+    %DrawRow(158)  ; masshesteria
+    %DrawRow(159)
+    %Blank()
+    %Blank()
+    %DrawRow(148)  ; Special thanks to
+    %Blank()
+    %DrawRow(154)  ; Testers
+    %Blank()
+    %DrawRow(137)  ; andreww
+    %DrawRow(138)
+    %Blank()
+    %DrawRow(155)  ; fbs
+    %DrawRow(156)
+    %Blank()
+    %DrawRow(171)  ; maniacal
+    %DrawRow(172)
+    %Blank()
+    %DrawRow(173)  ; osse
+    %DrawRow(174)
+    %Blank()
+    %DrawRow(135)  ; rumble
+    %DrawRow(136)
+    %Blank()
+    %DrawRow(144)  ; sloaters
+    %DrawRow(145)
+    %Blank()
+    %DrawRow(167)  ; tracie
+    %DrawRow(168)
+    %Blank()
+    %DrawRow(169)  ; zeb
+    %DrawRow(170)
+    %Blank()
+    %Blank()
+    %DrawRow(149)  ; Disassembly
+    %Blank()
+    %DrawRow(150)
+    %DrawRow(151)
+    %Blank()
+    %DrawRow(152)
+    %DrawRow(153)
+    %Blank()
+    %Blank()
+    %DrawRow(175)  ; Metroid construction
+    %Blank()
+    %DrawRow(176)
+    %DrawRow(177)
+    %Blank()
+    %Blank()
+    %DrawRow(178)  ; SRL
+    %Blank()
+    %DrawRow(179)
+    %DrawRow(180)
+    %Blank()
+    %Blank()
+    %DrawRow(164)  ; Play this randomizer at
+    %Blank()
+    %DrawRow(181)
+    %DrawRow(182)
+    %Blank()
     
-    dw {draw}, {blank}
-    dw {draw}, {row}*183  // Game play stats
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {row}*184  // Doors
-    dw {draw}, {blank}
+    %Blank()
+    %DrawRow(183)  ; Game play stats
+    %Blank()
+    %Blank()
+    %DrawRow(184)  ; Doors
+    %Blank()
 
-    // Set scroll speed to 3 frames per pixel
-    dw {speed}, $0003
-    dw {draw}, {row}*185
-    dw {draw}, {row}*186
-    dw {draw}, {blank}
-    dw {draw}, {row}*187
-    dw {draw}, {row}*188
-    dw {draw}, {blank}
-    dw {draw}, {row}*189
-    dw {draw}, {row}*190
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {row}*191
-    dw {draw}, {blank}
-    dw {draw}, {row}*192
-    dw {draw}, {row}*193
-    dw {draw}, {blank}
-    dw {draw}, {row}*194
-    dw {draw}, {row}*195
-    dw {draw}, {blank}
-    dw {draw}, {row}*196
-    dw {draw}, {row}*197
-    dw {draw}, {blank}
-    dw {draw}, {row}*198
-    dw {draw}, {row}*199
-    dw {draw}, {blank}
-    dw {draw}, {row}*200
-    dw {draw}, {row}*201
-    dw {draw}, {blank}
-    dw {draw}, {row}*202
-    dw {draw}, {row}*203
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {row}*204
-    dw {draw}, {blank}
-    dw {draw}, {row}*205
-    dw {draw}, {row}*206
-    dw {draw}, {blank}
-    dw {draw}, {row}*207
-    dw {draw}, {row}*208
-    dw {draw}, {blank}
-    dw {draw}, {row}*209
-    dw {draw}, {row}*210
-    dw {draw}, {blank}
-    dw {draw}, {row}*211
-    dw {draw}, {row}*212
-    dw {draw}, {blank}
-    dw {draw}, {row}*213
-    dw {draw}, {row}*214
-    dw {draw}, {blank}
-    dw {draw}, {row}*215
-    dw {draw}, {row}*216
+    ; Set scroll speed to 3 frames per pixel
+    dw !speed, $0003
+    %DrawRow(185)
+    %DrawRow(186)
+    %Blank()
+    %DrawRow(187)
+    %DrawRow(188)
+    %Blank()
+    %DrawRow(189)
+    %DrawRow(190)
+    %Blank()
+    %Blank()
+    %DrawRow(191)
+    %Blank()
+    %DrawRow(192)
+    %DrawRow(193)
+    %Blank()
+    %DrawRow(194)
+    %DrawRow(195)
+    %Blank()
+    %DrawRow(196)
+    %DrawRow(197)
+    %Blank()
+    %DrawRow(198)
+    %DrawRow(199)
+    %Blank()
+    %DrawRow(200)
+    %DrawRow(201)
+    %Blank()
+    %DrawRow(202)
+    %DrawRow(203)
+    %Blank()
+    %Blank()
+    %DrawRow(204)
+    %Blank()
+    %DrawRow(205)
+    %DrawRow(206)
+    %Blank()
+    %DrawRow(207)
+    %DrawRow(208)
+    %Blank()
+    %DrawRow(209)
+    %DrawRow(210)
+    %Blank()
+    %DrawRow(211)
+    %DrawRow(212)
+    %Blank()
+    %DrawRow(213)
+    %DrawRow(214)
+    %Blank()
+    %DrawRow(215)
+    %DrawRow(216)
 
    
-    // Draw item locations
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {row}*640
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {row}*641
-    dw {draw}, {row}*642
-    dw {draw}, {blank}
-    dw {draw}, {row}*643
-    dw {draw}, {row}*644
-    dw {draw}, {blank}
-    dw {draw}, {row}*645
-    dw {draw}, {row}*646
-    dw {draw}, {blank}
-    dw {draw}, {row}*647
-    dw {draw}, {row}*648
-    dw {draw}, {blank}
-    dw {draw}, {row}*649
-    dw {draw}, {row}*650
-    dw {draw}, {blank}
-    dw {draw}, {row}*651
-    dw {draw}, {row}*652
-    dw {draw}, {blank}
-    dw {draw}, {row}*653
-    dw {draw}, {row}*654
-    dw {draw}, {blank}
-    dw {draw}, {row}*655
-    dw {draw}, {row}*656
-    dw {draw}, {blank}
-    dw {draw}, {row}*657
-    dw {draw}, {row}*658
-    dw {draw}, {blank}
-    dw {draw}, {row}*659
-    dw {draw}, {row}*660
-    dw {draw}, {blank}
-    dw {draw}, {row}*661
-    dw {draw}, {row}*662
-    dw {draw}, {blank}
-    dw {draw}, {row}*663
-    dw {draw}, {row}*664
-    dw {draw}, {blank}
-    dw {draw}, {row}*665
-    dw {draw}, {row}*666
-    dw {draw}, {blank}
-    dw {draw}, {row}*667
-    dw {draw}, {row}*668
-    dw {draw}, {blank}
-    dw {draw}, {row}*669
-    dw {draw}, {row}*670
-    dw {draw}, {blank}
-    dw {draw}, {row}*671
-    dw {draw}, {row}*672
+    ; Draw item locations
+    %Blank()
+    %Blank()
+    %DrawRow(640)
+    %Blank()
+    %Blank()
+    %DrawRow(641)
+    %DrawRow(642)
+    %Blank()
+    %DrawRow(643)
+    %DrawRow(644)
+    %Blank()
+    %DrawRow(645)
+    %DrawRow(646)
+    %Blank()
+    %DrawRow(647)
+    %DrawRow(648)
+    %Blank()
+    %DrawRow(649)
+    %DrawRow(650)
+    %Blank()
+    %DrawRow(651)
+    %DrawRow(652)
+    %Blank()
+    %DrawRow(653)
+    %DrawRow(654)
+    %Blank()
+    %DrawRow(655)
+    %DrawRow(656)
+    %Blank()
+    %DrawRow(657)
+    %DrawRow(658)
+    %Blank()
+    %DrawRow(659)
+    %DrawRow(660)
+    %Blank()
+    %DrawRow(661)
+    %DrawRow(662)
+    %Blank()
+    %DrawRow(663)
+    %DrawRow(664)
+    %Blank()
+    %DrawRow(665)
+    %DrawRow(666)
+    %Blank()
+    %DrawRow(667)
+    %DrawRow(668)
+    %Blank()
+    %DrawRow(669)
+    %DrawRow(670)
+    %Blank()
+    %DrawRow(671)
+    %DrawRow(672)
 
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {row}*217
-    dw {draw}, {row}*218
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {row}*219
-    dw {draw}, {row}*220        
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {blank}
-    dw {draw}, {blank}
+    %Blank()
+    %Blank()
+    %Blank()
+    %Blank()
+    %Blank()
+    %Blank()
+    %DrawRow(217)
+    %DrawRow(218)
+    %Blank()
+    %Blank()
+    %DrawRow(219)
+    %DrawRow(220)        
+    %Blank()
+    %Blank()
+    %Blank()
+    %Blank()
+    %Blank()
+    %Blank()
+    %Blank()
+    %Blank()
+    %Blank()
 
-    // Set scroll speed to 4 frames per pixel
-    dw {speed}, $0004
+    ; Set scroll speed to 4 frames per pixel
+    dw !speed, $0004
    
-    // Scroll all text off and end credits
-    dw {set}, $0017; -
-    dw {draw}, {blank}
-    dw {delay}, -    
-    dw {end}
+    ; Scroll all text off and end credits
+    dw !set, $0017 : -
+    %Blank()
+    dw !delay, -    
+    dw !end
 
 stats:
-    // STAT ID, ADDRESS,    TYPE (1 = Number, 2 = Time, 3 = Full time), UNUSED
-    dw 0,       {row}*217,  3, 0    // Full RTA Time
-    dw 2,       {row}*185,  1, 0    // Door transitions
-    dw 3,       {row}*187,  3, 0    // Time in doors
-    dw 5,       {row}*189,  2, 0    // Time adjusting doors
-    dw 7,       {row}*192,  3, 0    // Crateria
-    dw 9,       {row}*194,  3, 0    // Brinstar
-    dw 11,      {row}*196,  3, 0    // Norfair
-    dw 13,      {row}*198,  3, 0    // Wrecked Ship
-    dw 15,      {row}*200,  3, 0    // Maridia
-    dw 17,      {row}*202,  3, 0    // Tourian
-    dw 20,      {row}*205,  1, 0    // Charged Shots
-    dw 21,      {row}*207,  1, 0    // Special Beam Attacks
-    dw 22,      {row}*209,  1, 0    // Missiles
-    dw 23,      {row}*211,  1, 0    // Super Missiles
-    dw 24,      {row}*213,  1, 0    // Power Bombs
-    dw 26,      {row}*215,  1, 0    // Bombs
-    dw 0,               0,  0, 0    // end of table
+    ; STAT ID, ADDRESS,    TYPE (1 = Number, 2 = Time, 3 = Full time), UNUSED
+    dw 0,       !row*217,  3, 0    ; Full RTA Time
+    dw 2,       !row*185,  1, 0    ; Door transitions
+    dw 3,       !row*187,  3, 0    ; Time in doors
+    dw 5,       !row*189,  2, 0    ; Time adjusting doors
+    dw 7,       !row*192,  3, 0    ; Crateria
+    dw 9,       !row*194,  3, 0    ; Brinstar
+    dw 11,      !row*196,  3, 0    ; Norfair
+    dw 13,      !row*198,  3, 0    ; Wrecked Ship
+    dw 15,      !row*200,  3, 0    ; Maridia
+    dw 17,      !row*202,  3, 0    ; Tourian
+    dw 20,      !row*205,  1, 0    ; Charged Shots
+    dw 21,      !row*207,  1, 0    ; Special Beam Attacks
+    dw 22,      !row*209,  1, 0    ; Missiles
+    dw 23,      !row*211,  1, 0    ; Super Missiles
+    dw 24,      !row*213,  1, 0    ; Power Bombs
+    dw 26,      !row*215,  1, 0    ; Bombs
+    dw 0,               0,  0, 0    ; end of table
 
-warnpc($dfffff)
+warnpc $dfffff
 
-// Relocated credits tilemap to free space in bank CE
-seek($ceb240)
+macro font1(str,color)
+    pushtable
+    table "tables/<color>_single.tbl",rtl
+    dw "<str>"
+    pulltable
+endmacro
+
+macro font2(str,color)
+    pushtable
+    table "tables/<color>_double_top.tbl"
+    dw "<str>"
+    table "tables/<color>_double_bottom.tbl"
+    dw "<str>"
+    pulltable
+endmacro
+
+; Relocated credits tilemap to free space in bank CE
+org $ceb240
 credits:
-    // Single line characters:
-    //   ABCDEFGHIJKLMNOPQRSTUVWXYZ.,':!
-    // Double line characters:
-    //   ABCDEFGHIJKLMNOPQRSTUVWXYZ.^':%&
-    //   0123456789
+    ; Single line characters:
+    ;   ABCDEFGHIJKLMNOPQRSTUVWXYZ.,':!
+    ; Double line characters:
+    ;   ABCDEFGHIJKLMNOPQRSTUVWXYZ.^':%&
+    ;   0123456789
     
-    font1("     DASH RANDOMIZER STAFF      ", {pink})    // 128
-    font1("        RANDOMIZER CODE         ", {purple})  // 129
-    font2("             TOTAL              ", {white})   // 130 + 131
-    font2("           DESSYREQT            ", {white})   // 132 + 133
-    font1("           SNES CODE            ", {purple})  // 134
-    font2("          RUMBLEMINZE           ", {white})   // 135 + 136
-    font2("            ANDREWW             ", {white})   // 137 + 138
-    font2("           PERSONITIS           ", {white})   // 139 + 140
-    font1("          ROM PATCHES           ", {purple})  // 141
-    font2("             SMILEY             ", {white})   // 142 + 143
-    font2("           SLOATERS27           ", {white})   // 144 + 145
-    font2("             LEODOX             ", {white})   // 146 + 147
-    font1("       SPECIAL THANKS TO        ", {cyan})    // 148
-    font1("   SUPER METROID DISASSEMBLY    ", {yellow})  // 149
-    font2("             PJBOY              ", {white})   // 150 + 151
-    font2("            KEJARDON            ", {white})   // 152 + 153
-    font1("            TESTERS             ", {yellow})  // 154
-    font2("         FRUITBATSALAD          ", {white})   // 155 + 156
-    font1("       TECHNICAL SUPPORT        ", {purple})  // 157
-    font2("          MASSHESTERIA          ", {white})   // 158 + 159
-    font2("           MINIMEMYS            ", {white})   // 160 + 161
-    font1("          LOGO DESIGN           ", {purple})  // 162
-    font1("          GAME BALANCE          ", {purple})  // 163
-    font1("     PLAY THIS RANDOMIZER AT    ", {cyan})    // 164
-    font2("              KIPP              ", {white})   // 165 + 166
-    font2("            TRACIEM             ", {white})   // 167 + 168
-    font2("             ZEB316             ", {white})   // 169 + 170
-    font2("           MANIACAL42           ", {white})   // 171 + 172
-    font2("            OSSE101             ", {white})   // 173 + 174
-    font1("      METROID CONSTRUCTION      ", {yellow})  // 175
-    font2("     METROIDCONSTRUCTION.COM    ", {white})   // 176 + 177
-    font1("  SUPER METROID SRL COMMUNITY   ", {yellow})  // 178
-    font2("    DISCORD INVITE : 6RYJM4M    ", {white})   // 179 + 180
-    font2("      DASHRANDO.GITHUB.IO       ", {white})   // 181 + 182
-    font1("      GAMEPLAY STATISTICS       ", {purple})  // 183
-    font1("             DOORS              ", {orange})  // 184
-    font2(" DOOR TRANSITIONS               ", {white})   // 185 + 186
-    font2(" TIME IN DOORS      00'00'00^00 ", {white})   // 187 + 188
-    font2(" TIME ALIGNING DOORS   00'00^00 ", {white})   // 189 + 190
-    font1("         TIME SPENT IN          ", {blue})    // 191
-    font2(" CRATERIA           00'00'00^00 ", {white})   // 192 + 193
-    font2(" BRINSTAR           00'00'00^00 ", {white})   // 194 + 195
-    font2(" NORFAIR            00'00'00^00 ", {white})   // 196 + 197
-    font2(" WRECKED SHIP       00'00'00^00 ", {white})   // 198 + 199
-    font2(" MARIDIA            00'00'00^00 ", {white})   // 200 + 201
-    font2(" TOURIAN            00'00'00^00 ", {white})   // 202 + 203
-    font1("      SHOTS AND AMMO FIRED      ", {green})   // 204
-    font2(" CHARGED SHOTS                  ", {white})   // 205 + 206
-    font2(" SPECIAL BEAM ATTACKS           ", {white})   // 207 + 208
-    font2(" MISSILES                       ", {white})   // 209 + 210
-    font2(" SUPER MISSILES                 ", {white})   // 211 + 212
-    font2(" POWER BOMBS                    ", {white})   // 213 + 214
-    font2(" BOMBS                          ", {white})   // 215 + 216
-    font2(" FINAL TIME         00'00'00^00 ", {white})   // 217 + 218
-    font2("       THANKS FOR PLAYING       ", {green})   // 219 + 220
-    dw $dead                              // End of credits tilemap
+    %font1("     DASH RANDOMIZER STAFF      ", "pink")    ; 128
+    %font1("        RANDOMIZER CODE         ", "purple")  ; 129
+    %font2("             TOTAL              ", "white")   ; 130 + 131
+    %font2("           DESSYREQT            ", "white")   ; 132 + 133
+    %font1("           SNES CODE            ", "purple")  ; 134
+    %font2("          RUMBLEMINZE           ", "white")   ; 135 + 136
+    %font2("            ANDREWW             ", "white")   ; 137 + 138
+    %font2("           PERSONITIS           ", "white")   ; 139 + 140
+    %font1("          ROM PATCHES           ", "purple")  ; 141
+    %font2("             SMILEY             ", "white")   ; 142 + 143
+    %font2("           SLOATERS27           ", "white")   ; 144 + 145
+    %font2("             LEODOX             ", "white")   ; 146 + 147
+    %font1("       SPECIAL THANKS TO        ", "cyan")    ; 148
+    %font1("   SUPER METROID DISASSEMBLY    ", "yellow")  ; 149
+    %font2("             PJBOY              ", "white")   ; 150 + 151
+    %font2("            KEJARDON            ", "white")   ; 152 + 153
+    %font1("            TESTERS             ", "yellow")  ; 154
+    %font2("         FRUITBATSALAD          ", "white")   ; 155 + 156
+    %font1("       TECHNICAL SUPPORT        ", "purple")  ; 157
+    %font2("          MASSHESTERIA          ", "white")   ; 158 + 159
+    %font2("           MINIMEMYS            ", "white")   ; 160 + 161
+    %font1("          LOGO DESIGN           ", "purple")  ; 162
+    %font1("          GAME BALANCE          ", "purple")  ; 163
+    %font1("     PLAY THIS RANDOMIZER AT    ", "cyan")    ; 164
+    %font2("              KIPP              ", "white")   ; 165 + 166
+    %font2("            TRACIEM             ", "white")   ; 167 + 168
+    %font2("             ZEB316             ", "white")   ; 169 + 170
+    %font2("           MANIACAL42           ", "white")   ; 171 + 172
+    %font2("            OSSE101             ", "white")   ; 173 + 174
+    %font1("      METROID CONSTRUCTION      ", "yellow")  ; 175
+    %font2("     METROIDCONSTRUCTION.COM    ", "white")   ; 176 + 177
+    %font1("  SUPER METROID SRL COMMUNITY   ", "yellow")  ; 178
+    %font2("    DISCORD INVITE : 6RYJM4M    ", "white")   ; 179 + 180
+    %font2("      DASHRANDO.GITHUB.IO       ", "white")   ; 181 + 182
+    %font1("      GAMEPLAY STATISTICS       ", "purple")  ; 183
+    %font1("             DOORS              ", "orange")  ; 184
+    %font2(" DOOR TRANSITIONS               ", "white")   ; 185 + 186
+    %font2(" TIME IN DOORS      00'00'00^00 ", "white")   ; 187 + 188
+    %font2(" TIME ALIGNING DOORS   00'00^00 ", "white")   ; 189 + 190
+    %font1("         TIME SPENT IN          ", "blue")    ; 191
+    %font2(" CRATERIA           00'00'00^00 ", "white")   ; 192 + 193
+    %font2(" BRINSTAR           00'00'00^00 ", "white")   ; 194 + 195
+    %font2(" NORFAIR            00'00'00^00 ", "white")   ; 196 + 197
+    %font2(" WRECKED SHIP       00'00'00^00 ", "white")   ; 198 + 199
+    %font2(" MARIDIA            00'00'00^00 ", "white")   ; 200 + 201
+    %font2(" TOURIAN            00'00'00^00 ", "white")   ; 202 + 203
+    %font1("      SHOTS AND AMMO FIRED      ", "green")   ; 204
+    %font2(" CHARGED SHOTS                  ", "white")   ; 205 + 206
+    %font2(" SPECIAL BEAM ATTACKS           ", "white")   ; 207 + 208
+    %font2(" MISSILES                       ", "white")   ; 209 + 210
+    %font2(" SUPER MISSILES                 ", "white")   ; 211 + 212
+    %font2(" POWER BOMBS                    ", "white")   ; 213 + 214
+    %font2(" BOMBS                          ", "white")   ; 215 + 216
+    %font2(" FINAL TIME         00'00'00^00 ", "white")   ; 217 + 218
+    %font2("       THANKS FOR PLAYING       ", "green")   ; 219 + 220
+    dw $dead                              ; End of credits tilemap
 
-warnpc($ceffff)
+warnpc $ceffff
 
-// Placeholder label for item locations inserted by the randomizer
-seek($ded200)
+; Placeholder label for item locations inserted by the randomizer
+org $ded200
 itemlocations:
-    font1("      MAJOR ITEM LOCATIONS      ", {pink}) // 640
-    font1("MORPH BALL                      ", {yellow})
-    font1("................................", {orange})
-    font1("BOMB                            ", {yellow})
-    font1("................................", {orange})
-    font1("CHARGE BEAM                     ", {yellow})
-    font1("................................", {orange})
-    font1("ICE BEAM                        ", {yellow})
-    font1("................................", {orange})
-    font1("WAVE BEAM                       ", {yellow})
-    font1("................................", {orange})
-    font1("SPAZER                          ", {yellow})
-    font1("................................", {orange})
-    font1("PLASMA BEAM                     ", {yellow})
-    font1("................................", {orange})
-    font1("VARIA SUIT                      ", {yellow})
-    font1("................................", {orange})
-    font1("GRAVITY SUIT                    ", {yellow})
-    font1("................................", {orange})
-    font1("HIJUMP BOOTS                    ", {yellow})
-    font1("................................", {orange})
-    font1("SPACE JUMP                      ", {yellow})
-    font1("................................", {orange})
-    font1("SPEED BOOSTER                   ", {yellow})
-    font1("................................", {orange})
-    font1("SCREW ATTACK                    ", {yellow})
-    font1("................................", {orange})
-    font1("SPRING BALL                     ", {yellow})
-    font1("................................", {orange})
-    font1("XRAY SCOPE                      ", {yellow})
-    font1("................................", {orange})
-    font1("GRAPPLING BEAM                  ", {yellow})
-    font1("................................", {orange})
+    %font1("      MAJOR ITEM LOCATIONS      ", "pink") ; 640
+    %font1("MORPH BALL                      ", "yellow")
+    %font1("................................", "orange")
+    %font1("BOMB                            ", "yellow")
+    %font1("................................", "orange")
+    %font1("CHARGE BEAM                     ", "yellow")
+    %font1("................................", "orange")
+    %font1("ICE BEAM                        ", "yellow")
+    %font1("................................", "orange")
+    %font1("WAVE BEAM                       ", "yellow")
+    %font1("................................", "orange")
+    %font1("SPAZER                          ", "yellow")
+    %font1("................................", "orange")
+    %font1("PLASMA BEAM                     ", "yellow")
+    %font1("................................", "orange")
+    %font1("VARIA SUIT                      ", "yellow")
+    %font1("................................", "orange")
+    %font1("GRAVITY SUIT                    ", "yellow")
+    %font1("................................", "orange")
+    %font1("HIJUMP BOOTS                    ", "yellow")
+    %font1("................................", "orange")
+    %font1("SPACE JUMP                      ", "yellow")
+    %font1("................................", "orange")
+    %font1("SPEED BOOSTER                   ", "yellow")
+    %font1("................................", "orange")
+    %font1("SCREW ATTACK                    ", "yellow")
+    %font1("................................", "orange")
+    %font1("SPRING BALL                     ", "yellow")
+    %font1("................................", "orange")
+    %font1("XRAY SCOPE                      ", "yellow")
+    %font1("................................", "orange")
+    %font1("GRAPPLING BEAM                  ", "yellow")
+    %font1("................................", "orange")
     dd 0
