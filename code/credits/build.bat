@@ -13,8 +13,11 @@ copy ..\..\tools\SuperMetroid.sfc dash-credits.sfc
 echo.
 echo Applying ASM
 %ASAR% credits.asm dash-credits.sfc
-@REM %ASAR% test_credits.asm dash-credits.sfc
 
 echo.
 echo Creating IPS
 %FLIPS% --create --ips %VANILLA% dash-credits.sfc dash-credits.ips
+
+echo.
+echo Modify the ROM to make testing easy
+%ASAR% test_credits.asm dash-credits.sfc

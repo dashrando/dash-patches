@@ -7,7 +7,7 @@
 
 macro set_stat(stat, value)
   ldx #<stat>
-  lda <value>
+  lda.w <value>
   jsl $dfd880
 endmacro
 
